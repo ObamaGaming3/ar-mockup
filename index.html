@@ -96,39 +96,79 @@
       right: 12px;
       z-index: 20;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
       gap: 8px;
       pointer-events: none;
     }
 
-    .pill {
-      display: inline-flex;
+    #sys {
+      display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 14px;
-      font-size: 13px;
-      font-weight: 600;
+      gap: 12px;
+      padding: 8px 16px 8px 10px;
       border-radius: 999px;
     }
 
-    .dot {
-      width: 9px;
-      height: 9px;
+    .ampel {
+      display: flex;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: #0a0f1a;
+      border: 1px solid var(--border);
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    .lamp {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      opacity: 0.16;
+      transition: opacity 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+
+    .lamp.red { background: var(--bad); }
+    .lamp.yellow { background: var(--warn); }
+    .lamp.green { background: var(--ok); }
+    .lamp.on { opacity: 1; transform: scale(1.12); }
+    .lamp.red.on { box-shadow: 0 0 12px 3px rgba(248, 113, 113, 0.75); animation: blink 0.9s infinite; }
+    .lamp.yellow.on { box-shadow: 0 0 12px 3px rgba(251, 191, 36, 0.7); animation: blink 1.4s infinite; }
+    .lamp.green.on { box-shadow: 0 0 12px 3px rgba(52, 211, 153, 0.7); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+
+    #sys-text { display: flex; flex-direction: column; line-height: 1.2; }
+    #sys-title { font-size: 14px; font-weight: 700; }
+    #sys-detail { font-size: 11px; color: var(--muted); }
+
+    #checks { display: flex; gap: 6px; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      color: var(--muted);
+    }
+
+    .chip i {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--warn);
-      box-shadow: 0 0 0 0 currentColor;
-      color: var(--warn);
-      transition: background 0.3s, color 0.3s;
+      transition: background 0.3s;
     }
 
-    .dot.ok { background: var(--ok); color: var(--ok); animation: pulse 1.8s infinite; }
-    .dot.bad { background: var(--bad); color: var(--bad); }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6); }
-      100% { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
-    }
+    .chip.ok { color: var(--text); }
+    .chip.ok i { background: var(--ok); }
+    .chip.bad i { background: var(--bad); }
 
     #dock {
       position: fixed;
@@ -224,7 +264,7 @@
       width: 0;
       border-radius: inherit;
       background: linear-gradient(90deg, var(--accent), #818cf8);
-      transition: width 0.6s ease, background 0.3s;
+      transition: width 0.6s ease;
     }
 
     .bar > i.warn { background: linear-gradient(90deg, var(--warn), #f97316); }
@@ -259,6 +299,7 @@
       width: 90px;
       height: 90px;
       margin: 0 auto 14px;
+      animation: breathe 2s ease-in-out infinite;
     }
 
     .reticle::before, .reticle::after, .reticle i::before, .reticle i::after {
@@ -273,7 +314,6 @@
     .reticle::after { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
     .reticle i::before { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
     .reticle i::after { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
-    .reticle { animation: breathe 2s ease-in-out infinite; }
 
     @keyframes breathe {
       0%, 100% { transform: scale(1); opacity: 0.9; }
@@ -326,7 +366,7 @@
 
     #toast {
       position: fixed;
-      top: calc(max(12px, env(safe-area-inset-top)) + 54px);
+      top: calc(max(12px, env(safe-area-inset-top)) + 100px);
       left: 50%;
       z-index: 30;
       transform: translate(-50%, -10px);
@@ -345,16 +385,14 @@
     vr-mode-ui="enabled: false"
     renderer="logarithmicDepthBuffer: true; alpha: true"
     embedded
-    arjs="sourceType: webcam; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+    arjs="sourceType: webcam; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720; debugUIEnabled: false;">
     <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="8" smoothTolerance="0.01" smoothThreshold="4">
       <a-entity position="0 0 0">
         <a-box position="0 0.5 0" width="1" height="1" depth="1" color="#38bdf8" opacity="0.85" metalness="0.4" roughness="0.3">
           <animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></animation>
         </a-box>
-        <a-ring position="0 0.01" rotation="-90 0 0" radius-inner="0.9" radius-outer="1.05" color="#818cf8" opacity="0.9">
-          <animation attribute="rotation" to="-90 0 360" dur="6000" easing="linear" repeat="indefinite"></animation>
-        </a-ring>
-        <a-text value="CNC-Fraese M-204" align="center" color="#ffffff" width="4" position="0 1.5 0" look-at="[camera]"></a-text>
+        <a-ring position="0 0.01 0" rotation="-90 0 0" radius-inner="0.9" radius-outer="1.05" color="#818cf8" opacity="0.9"></a-ring>
+        <a-text value="CNC-Fraese M-204" align="center" color="#ffffff" width="4" position="0 1.5 0"></a-text>
       </a-entity>
     </a-marker>
     <a-entity camera></a-entity>
@@ -363,14 +401,28 @@
   <div id="loader">
     <div class="loader-box">
       <div class="spinner" id="spinner"></div>
-      <h1 id="loader-title">Kamera wird gestartet</h1>
+      <h1 id="loader-title">System wird gestartet</h1>
       <p id="loader-text">Bitte erlaube den Kamerazugriff, wenn dein Browser danach fragt.</p>
       <button class="retry" id="retry-btn" type="button">Erneut versuchen</button>
     </div>
   </div>
 
   <div id="topbar">
-    <div class="pill glass"><span class="dot" id="marker-dot"></span><span id="marker-label">Kein Marker</span></div>
+    <div id="sys" class="glass" role="status" aria-live="polite">
+      <div class="ampel">
+        <span class="lamp red" id="lamp-red"></span>
+        <span class="lamp yellow" id="lamp-yellow"></span>
+        <span class="lamp green" id="lamp-green"></span>
+      </div>
+      <div id="sys-text">
+        <span id="sys-title">System startet</span>
+        <span id="sys-detail">Bitte warten</span>
+      </div>
+    </div>
+    <div id="checks">
+      <span class="chip glass" id="chip-cam"><i></i>Kamera</span>
+      <span class="chip glass" id="chip-marker"><i></i>Marker</span>
+    </div>
   </div>
 
   <div id="hint" class="glass">
@@ -435,8 +487,14 @@
     const btnTorch = $('btn-torch');
     const usingFront = new URLSearchParams(location.search).get('cam') === 'user';
 
+    const system = {
+      camera: 'starting',
+      cameraError: '',
+      markerVisible: false,
+      everFound: false
+    };
+
     let markerFoundCount = 0;
-    let visible = false;
     let telemetryTimer = null;
     let torchOn = false;
     let toastTimer = null;
@@ -449,9 +507,39 @@
       toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
     }
 
-    function setCamStatus(state, label) {
-      $('cam-dot').className = 'dot ' + state;
-      $('cam-label').textContent = label;
+    function evaluateSystem() {
+      let state;
+      let title;
+      let detail;
+
+      if (system.camera === 'error') {
+        state = 'red';
+        title = 'Nicht bereit';
+        detail = system.cameraError || 'Kamera nicht verfügbar';
+      } else if (system.camera === 'starting') {
+        state = 'yellow';
+        title = 'System startet';
+        detail = 'Kamera wird initialisiert';
+      } else if (!system.markerVisible) {
+        state = 'yellow';
+        title = 'Suche Marker';
+        detail = system.everFound ? 'Marker verloren, bitte neu ausrichten' : 'Kamera bereit, Marker wird gesucht';
+      } else {
+        state = 'green';
+        title = 'System bereit';
+        detail = 'Kamera aktiv, Marker wird verfolgt';
+      }
+
+      ['red', 'yellow', 'green'].forEach((name) => {
+        $('lamp-' + name).classList.toggle('on', name === state);
+      });
+      $('sys-title').textContent = title;
+      $('sys-detail').textContent = detail;
+
+      const chipCam = $('chip-cam');
+      chipCam.className = 'chip glass ' + (system.camera === 'ready' ? 'ok' : system.camera === 'error' ? 'bad' : '');
+      const chipMarker = $('chip-marker');
+      chipMarker.className = 'chip glass ' + (system.markerVisible ? 'ok' : '');
     }
 
     function level(value, warnAt, badAt) {
@@ -470,25 +558,23 @@
       telemetry.load = drift(telemetry.load, 20, 100, 10);
       telemetry.vib = drift(telemetry.vib, 0.5, 6, 0.8);
 
-      const tempLevel = level(telemetry.temp, 80, 90);
-      const loadLevel = level(telemetry.load, 85, 95);
-      const vibLevel = level(telemetry.vib, 4, 5.2);
+      const lt = level(telemetry.temp, 80, 90);
+      const ll = level(telemetry.load, 85, 95);
+      const lv = level(telemetry.vib, 4, 5.2);
 
       $('m-temp').textContent = telemetry.temp.toFixed(1) + ' °C';
       $('m-load').textContent = Math.round(telemetry.load) + ' %';
       $('m-vib').textContent = telemetry.vib.toFixed(1) + ' mm/s';
 
-      $('b-temp').style.width = ((telemetry.temp - 20) / 80 * 100) + '%';
-      $('b-load').style.width = telemetry.load + '%';
-      $('b-vib').style.width = (telemetry.vib / 8 * 100) + '%';
+      $('b-temp').style.width = Math.min(100, (telemetry.temp - 20) / 80 * 100) + '%';
+      $('b-load').style.width = Math.min(100, telemetry.load) + '%';
+      $('b-vib').style.width = Math.min(100, telemetry.vib / 8 * 100) + '%';
 
-      $('b-temp').className = tempLevel;
-      $('b-load').className = loadLevel;
-      $('b-vib').className = vibLevel;
+      $('b-temp').className = lt;
+      $('b-load').className = ll;
+      $('b-vib').className = lv;
 
-      const worst = [tempLevel, loadLevel, vibLevel].includes('bad')
-        ? 'bad'
-        : [tempLevel, loadLevel, vibLevel].includes('warn') ? 'warn' : '';
+      const worst = [lt, ll, lv].includes('bad') ? 'bad' : [lt, ll, lv].includes('warn') ? 'warn' : '';
       const badge = $('state-badge');
       badge.className = 'badge ' + worst;
       badge.textContent = worst === 'bad' ? 'Kritisch' : worst === 'warn' ? 'Warnung' : 'Läuft';
@@ -522,55 +608,117 @@
       btnTorch.disabled = !(caps && caps.torch);
     }
 
-    function onCameraReady() {
+    function setCameraReady() {
+      if (system.camera === 'ready') return;
+      system.camera = 'ready';
+      system.cameraError = '';
       loader.classList.add('done');
       setTimeout(detectTorch, 600);
+      evaluateSystem();
     }
 
-    function onCameraError(message) {
+    function setCameraError(message) {
+      system.camera = 'error';
+      system.cameraError = message;
+      system.markerVisible = false;
       $('spinner').style.display = 'none';
-      $('loader-title').textContent = 'Kamera nicht verfügbar';
-      $('loader-text').textContent = message || 'Prüfe die Berechtigungen und nutze HTTPS oder localhost.';
+      $('loader-title').textContent = 'System nicht bereit';
+      $('loader-text').textContent = message;
       $('retry-btn').style.display = 'inline-block';
+      loader.classList.remove('done');
+      hint.classList.add('hidden');
+      card.classList.remove('visible');
+      stopTelemetry();
+      evaluateSystem();
     }
 
-    window.addEventListener('camera-init', onCameraReady);
-    window.addEventListener('arjs-video-loaded', onCameraReady);
-    window.addEventListener('camera-error', (event) => {
-      const detail = event && event.detail;
-      onCameraError(detail && detail.error && detail.error.message);
-    });
+    function checkEnvironment() {
+      const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+      if (!window.isSecureContext && !local) {
+        setCameraError('Seite muss über HTTPS geöffnet werden');
+        return false;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError('Browser unterstützt keinen Kamerazugriff');
+        return false;
+      }
+      return true;
+    }
 
-    setTimeout(() => {
-      if (!loader.classList.contains('done') && getVideo() && getVideo().readyState >= 2) onCameraReady();
-    }, 4000);
+    function explainError(error) {
+      const name = error && error.name;
+      if (name === 'NotAllowedError' || name === 'SecurityError') return 'Kamerazugriff wurde verweigert';
+      if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'Keine passende Kamera gefunden';
+      if (name === 'NotReadableError') return 'Kamera wird von einer anderen App genutzt';
+      return (error && error.message) || 'Kamera konnte nicht gestartet werden';
+    }
+
+    function watchdog() {
+      if (system.camera === 'error' || system.camera === 'starting') return;
+      const track = getTrack();
+      const video = getVideo();
+      if (!track || track.readyState === 'ended' || (video && video.readyState < 2 && video.paused)) {
+        setCameraError('Kamerastream unterbrochen');
+      }
+    }
+
+    if (checkEnvironment()) {
+      window.addEventListener('camera-init', setCameraReady);
+      window.addEventListener('arjs-video-loaded', setCameraReady);
+      window.addEventListener('camera-error', (event) => {
+        const detail = event && event.detail;
+        setCameraError(explainError(detail && detail.error));
+      });
+
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'camera' }).then((status) => {
+          if (status.state === 'denied') setCameraError('Kamerazugriff wurde verweigert');
+          status.onchange = () => {
+            if (status.state === 'denied') setCameraError('Kamerazugriff wurde verweigert');
+          };
+        }).catch(() => {});
+      }
+
+      setTimeout(() => {
+        const video = getVideo();
+        if (system.camera === 'starting' && video && video.readyState >= 2) setCameraReady();
+      }, 4000);
+
+      setTimeout(() => {
+        if (system.camera === 'starting') setCameraError('Kamera antwortet nicht');
+      }, 20000);
+
+      setInterval(watchdog, 1500);
+    }
+
+    evaluateSystem();
 
     $('retry-btn').addEventListener('click', () => location.reload());
 
     hiroMarker.addEventListener('markerFound', () => {
       console.debug('Marker found');
       markerFoundCount += 1;
-      visible = true;
-      $('marker-dot').className = 'dot ok';
-      $('marker-label').textContent = 'Marker erkannt';
+      system.markerVisible = true;
+      system.everFound = true;
       $('found-count').textContent = 'Erkannt: ' + markerFoundCount + '×';
       hint.classList.add('hidden');
       card.classList.add('visible');
       startTelemetry();
+      evaluateSystem();
       if (navigator.vibrate) navigator.vibrate(30);
     });
 
     hiroMarker.addEventListener('markerLost', () => {
       console.debug('Marker lost');
-      visible = false;
-      $('marker-dot').className = 'dot';
-      $('marker-label').textContent = 'Marker verloren';
+      system.markerVisible = false;
       $('last-seen').textContent = 'Zuletzt: ' + new Date().toLocaleTimeString('de-DE');
-      hint.classList.remove('hidden');
+      if (system.camera !== 'error') hint.classList.remove('hidden');
       card.classList.remove('visible');
       stopTelemetry();
+      evaluateSystem();
     });
 
+    $('btn-switch').classList.toggle('active', usingFront);
     $('btn-switch').addEventListener('click', () => {
       const url = new URL(location.href);
       if (usingFront) url.searchParams.delete('cam');
