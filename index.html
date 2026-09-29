@@ -2,84 +2,638 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Industrie 4.0 AR Mockup - Testpage</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <title>Industrie 4.0 AR Mockup</title>
+  <script>
+    (function () {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      const md = navigator.mediaDevices;
+      const original = md.getUserMedia.bind(md);
+      const wantFront = new URLSearchParams(location.search).get('cam') === 'user';
+      let backId = null;
+
+      async function findBackCamera() {
+        if (backId) return backId;
+        try {
+          const probe = await original({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+          probe.getTracks().forEach((t) => t.stop());
+          const devices = await md.enumerateDevices();
+          const cams = devices.filter((d) => d.kind === 'videoinput');
+          const match = cams.find((d) => /back|rear|environment|rück|hinten/i.test(d.label));
+          if (match) backId = match.deviceId;
+          else if (cams.length > 1) backId = cams[cams.length - 1].deviceId;
+        } catch (e) {}
+        return backId;
+      }
+
+      md.getUserMedia = async (constraints) => {
+        if (!constraints || !constraints.video) return original(constraints);
+        const base = typeof constraints.video === 'object' ? { ...constraints.video } : {};
+        delete base.facingMode;
+        if (wantFront) {
+          return original({ ...constraints, video: { ...base, facingMode: { ideal: 'user' } } });
+        }
+        const id = await findBackCamera();
+        if (id) {
+          try {
+            return await original({ ...constraints, video: { ...base, deviceId: { exact: id } } });
+          } catch (e) {}
+        }
+        try {
+          return await original({ ...constraints, video: { ...base, facingMode: { exact: 'environment' } } });
+        } catch (e) {
+          return original({ ...constraints, video: { ...base, facingMode: { ideal: 'environment' } } });
+        }
+      };
+    })();
+  </script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+      --bg: rgba(12, 18, 32, 0.62);
+      --border: rgba(255, 255, 255, 0.16);
+      --text: #f2f6ff;
+      --muted: #9fb0cc;
+      --accent: #38bdf8;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --bad: #f87171;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      overflow: hidden;
+      background: #05080f;
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    video, canvas.a-canvas {
+      width: 100vw !important;
+      height: 100vh !important;
+      object-fit: contain !important;
+    }
+
+    .glass {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    #topbar {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      left: 12px;
+      right: 12px;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 999px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--warn);
+      box-shadow: 0 0 0 0 currentColor;
+      color: var(--warn);
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .dot.ok { background: var(--ok); color: var(--ok); animation: pulse 1.8s infinite; }
+    .dot.bad { background: var(--bad); color: var(--bad); }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6); }
+      100% { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+    }
+
+    #dock {
+      position: fixed;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .btn {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s, border-color 0.2s;
+    }
+
+    .btn:hover { background: rgba(255, 255, 255, 0.14); }
+    .btn:active { transform: scale(0.92); }
+    .btn.active { background: rgba(56, 189, 248, 0.28); border-color: var(--accent); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    #card {
+      position: fixed;
+      left: 50%;
+      bottom: calc(max(16px, env(safe-area-inset-bottom)) + 84px);
+      z-index: 15;
+      width: min(92vw, 380px);
+      padding: 16px;
+      transform: translate(-50%, 24px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    #card.visible { opacity: 1; transform: translate(-50%, 0); }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .card-title { font-size: 17px; font-weight: 700; margin: 0; }
+    .card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .badge {
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.18);
+      color: var(--ok);
+      white-space: nowrap;
+    }
+
+    .badge.warn { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
+    .badge.bad { background: rgba(248, 113, 113, 0.18); color: var(--bad); }
+
+    .metrics { display: grid; gap: 12px; }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .metric-row span:first-child { color: var(--muted); }
+    .metric-row span:last-child { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    .bar {
+      height: 6px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.1);
       overflow: hidden;
     }
 
-    #overlay {
-      display: none;
+    .bar > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), #818cf8);
+      transition: width 0.6s ease, background 0.3s;
+    }
+
+    .bar > i.warn { background: linear-gradient(90deg, var(--warn), #f97316); }
+    .bar > i.bad { background: linear-gradient(90deg, var(--bad), #ef4444); }
+
+    .card-foot {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #hint {
       position: fixed;
       top: 50%;
       left: 50%;
-      z-index: 10;
-      min-width: 220px;
-      padding: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.45);
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(2px);
-      font-size: 16px;
-      color: #fff;
+      z-index: 12;
+      transform: translate(-50%, -50%);
+      width: min(80vw, 300px);
+      padding: 22px 18px;
+      text-align: center;
+      transition: opacity 0.3s;
     }
 
-    /* Kamera-/Canvas-Darstellung */
-    video, canvas {
-      width: 100vw !important;
-      height: 100vh !important;
-      object-fit: contain !important; /* weniger Zoom-Eindruck */
+    #hint.hidden { opacity: 0; pointer-events: none; }
+
+    .reticle {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      margin: 0 auto 14px;
     }
+
+    .reticle::before, .reticle::after, .reticle i::before, .reticle i::after {
+      content: "";
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border: 3px solid var(--accent);
+    }
+
+    .reticle::before { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+    .reticle::after { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
+    .reticle i::before { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
+    .reticle i::after { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
+    .reticle { animation: breathe 2s ease-in-out infinite; }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.12); opacity: 0.5; }
+    }
+
+    #hint p { margin: 0; font-size: 14px; line-height: 1.45; }
+    #hint small { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 30%, #12203a, #05080f 70%);
+      transition: opacity 0.5s;
+    }
+
+    #loader.done { opacity: 0; pointer-events: none; }
+
+    .loader-box { text-align: center; padding: 24px; max-width: 320px; }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto 18px;
+      border: 4px solid rgba(255, 255, 255, 0.12);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loader h1 { font-size: 18px; margin: 0 0 6px; }
+    #loader p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    #loader .retry {
+      display: none;
+      margin-top: 16px;
+      padding: 10px 18px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #04121c;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #toast {
+      position: fixed;
+      top: calc(max(12px, env(safe-area-inset-top)) + 54px);
+      left: 50%;
+      z-index: 30;
+      transform: translate(-50%, -10px);
+      padding: 8px 14px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
   </style>
 </head>
 <body>
   <a-scene
     vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true"
+    renderer="logarithmicDepthBuffer: true; alpha: true"
     embedded
-    arjs="sourceType: webcam; facingMode: environment; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720; debugUIEnabled: false;">
-    <a-marker preset="hiro" id="hiro-marker"></a-marker>
+    arjs="sourceType: webcam; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+    <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="8" smoothTolerance="0.01" smoothThreshold="4">
+      <a-entity position="0 0 0">
+        <a-box position="0 0.5 0" width="1" height="1" depth="1" color="#38bdf8" opacity="0.85" metalness="0.4" roughness="0.3">
+          <animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></animation>
+        </a-box>
+        <a-ring position="0 0.01" rotation="-90 0 0" radius-inner="0.9" radius-outer="1.05" color="#818cf8" opacity="0.9">
+          <animation attribute="rotation" to="-90 0 360" dur="6000" easing="linear" repeat="indefinite"></animation>
+        </a-ring>
+        <a-text value="CNC-Fraese M-204" align="center" color="#ffffff" width="4" position="0 1.5 0" look-at="[camera]"></a-text>
+      </a-entity>
+    </a-marker>
     <a-entity camera></a-entity>
   </a-scene>
 
-  <div id="overlay">
-    <div id="marker-count">The Marker was not yet found</div>
+  <div id="loader">
+    <div class="loader-box">
+      <div class="spinner" id="spinner"></div>
+      <h1 id="loader-title">Kamera wird gestartet</h1>
+      <p id="loader-text">Bitte erlaube den Kamerazugriff, wenn dein Browser danach fragt.</p>
+      <button class="retry" id="retry-btn" type="button">Erneut versuchen</button>
+    </div>
+  </div>
+
+  <div id="topbar">
+    <div class="pill glass"><span class="dot" id="marker-dot"></span><span id="marker-label">Kein Marker</span></div>
+  </div>
+
+  <div id="hint" class="glass">
+    <div class="reticle"><i></i></div>
+    <p>Richte die Kamera auf den Hiro-Marker</p>
+    <small>Halte das Gerät ruhig und sorge für gutes Licht.</small>
+  </div>
+
+  <div id="card" class="glass" aria-live="polite">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">CNC-Fräse M-204</h2>
+        <div class="card-sub">Halle 3 · Linie B · ID 40-2207</div>
+      </div>
+      <span class="badge" id="state-badge">Läuft</span>
+    </div>
+    <div class="metrics">
+      <div>
+        <div class="metric-row"><span>Spindeltemperatur</span><span id="m-temp">--</span></div>
+        <div class="bar"><i id="b-temp"></i></div>
+      </div>
+      <div>
+        <div class="metric-row"><span>Auslastung</span><span id="m-load">--</span></div>
+        <div class="bar"><i id="b-load"></i></div>
+      </div>
+      <div>
+        <div class="metric-row"><span>Vibration</span><span id="m-vib">--</span></div>
+        <div class="bar"><i id="b-vib"></i></div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <span id="found-count">Erkannt: 0×</span>
+      <span id="last-seen">Zuletzt: --</span>
+    </div>
+  </div>
+
+  <div id="toast" class="pill glass"></div>
+
+  <div id="dock" class="glass">
+    <button class="btn" id="btn-switch" type="button" aria-label="Kamera wechseln" title="Kamera wechseln">
+      <svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h3M20 16v2a2 2 0 0 1-2 2h-3M9 4l-2 2 2 2M15 20l2-2-2-2"/><circle cx="12" cy="12" r="3.5"/></svg>
+    </button>
+    <button class="btn" id="btn-torch" type="button" aria-label="Taschenlampe" title="Taschenlampe" disabled>
+      <svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+    </button>
+    <button class="btn" id="btn-shot" type="button" aria-label="Screenshot" title="Screenshot">
+      <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </button>
+    <button class="btn" id="btn-full" type="button" aria-label="Vollbild" title="Vollbild">
+      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
   </div>
 
   <script>
-    const overlay = document.getElementById('overlay');
-    const hiroMarker = document.getElementById('hiro-marker');
-    const markerCount = document.getElementById('marker-count');
+    const $ = (id) => document.getElementById(id);
+    const scene = document.querySelector('a-scene');
+    const hiroMarker = $('hiro-marker');
+    const card = $('card');
+    const hint = $('hint');
+    const loader = $('loader');
+    const toast = $('toast');
+    const btnTorch = $('btn-torch');
+    const usingFront = new URLSearchParams(location.search).get('cam') === 'user';
+
     let markerFoundCount = 0;
+    let visible = false;
+    let telemetryTimer = null;
+    let torchOn = false;
+    let toastTimer = null;
+    let telemetry = { temp: 62, load: 68, vib: 2.1 };
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function setCamStatus(state, label) {
+      $('cam-dot').className = 'dot ' + state;
+      $('cam-label').textContent = label;
+    }
+
+    function level(value, warnAt, badAt) {
+      if (value >= badAt) return 'bad';
+      if (value >= warnAt) return 'warn';
+      return '';
+    }
+
+    function drift(value, min, max, step) {
+      const next = value + (Math.random() - 0.5) * step;
+      return Math.min(max, Math.max(min, next));
+    }
+
+    function renderTelemetry() {
+      telemetry.temp = drift(telemetry.temp, 45, 95, 4);
+      telemetry.load = drift(telemetry.load, 20, 100, 10);
+      telemetry.vib = drift(telemetry.vib, 0.5, 6, 0.8);
+
+      const tempLevel = level(telemetry.temp, 80, 90);
+      const loadLevel = level(telemetry.load, 85, 95);
+      const vibLevel = level(telemetry.vib, 4, 5.2);
+
+      $('m-temp').textContent = telemetry.temp.toFixed(1) + ' °C';
+      $('m-load').textContent = Math.round(telemetry.load) + ' %';
+      $('m-vib').textContent = telemetry.vib.toFixed(1) + ' mm/s';
+
+      $('b-temp').style.width = ((telemetry.temp - 20) / 80 * 100) + '%';
+      $('b-load').style.width = telemetry.load + '%';
+      $('b-vib').style.width = (telemetry.vib / 8 * 100) + '%';
+
+      $('b-temp').className = tempLevel;
+      $('b-load').className = loadLevel;
+      $('b-vib').className = vibLevel;
+
+      const worst = [tempLevel, loadLevel, vibLevel].includes('bad')
+        ? 'bad'
+        : [tempLevel, loadLevel, vibLevel].includes('warn') ? 'warn' : '';
+      const badge = $('state-badge');
+      badge.className = 'badge ' + worst;
+      badge.textContent = worst === 'bad' ? 'Kritisch' : worst === 'warn' ? 'Warnung' : 'Läuft';
+    }
+
+    function startTelemetry() {
+      renderTelemetry();
+      clearInterval(telemetryTimer);
+      telemetryTimer = setInterval(renderTelemetry, 1000);
+    }
+
+    function stopTelemetry() {
+      clearInterval(telemetryTimer);
+      telemetryTimer = null;
+    }
+
+    function getVideo() {
+      return document.querySelector('video');
+    }
+
+    function getTrack() {
+      const video = getVideo();
+      const stream = video && video.srcObject;
+      return stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+    }
+
+    function detectTorch() {
+      const track = getTrack();
+      if (!track || !track.getCapabilities) return;
+      const caps = track.getCapabilities();
+      btnTorch.disabled = !(caps && caps.torch);
+    }
+
+    function onCameraReady() {
+      loader.classList.add('done');
+      setTimeout(detectTorch, 600);
+    }
+
+    function onCameraError(message) {
+      $('spinner').style.display = 'none';
+      $('loader-title').textContent = 'Kamera nicht verfügbar';
+      $('loader-text').textContent = message || 'Prüfe die Berechtigungen und nutze HTTPS oder localhost.';
+      $('retry-btn').style.display = 'inline-block';
+    }
+
+    window.addEventListener('camera-init', onCameraReady);
+    window.addEventListener('arjs-video-loaded', onCameraReady);
+    window.addEventListener('camera-error', (event) => {
+      const detail = event && event.detail;
+      onCameraError(detail && detail.error && detail.error.message);
+    });
+
+    setTimeout(() => {
+      if (!loader.classList.contains('done') && getVideo() && getVideo().readyState >= 2) onCameraReady();
+    }, 4000);
+
+    $('retry-btn').addEventListener('click', () => location.reload());
 
     hiroMarker.addEventListener('markerFound', () => {
       console.debug('Marker found');
       markerFoundCount += 1;
-      markerCount.textContent = `The Marker was found the ${markerFoundCount} time`;
-      overlay.style.display = 'block';
+      visible = true;
+      $('marker-dot').className = 'dot ok';
+      $('marker-label').textContent = 'Marker erkannt';
+      $('found-count').textContent = 'Erkannt: ' + markerFoundCount + '×';
+      hint.classList.add('hidden');
+      card.classList.add('visible');
+      startTelemetry();
+      if (navigator.vibrate) navigator.vibrate(30);
     });
 
     hiroMarker.addEventListener('markerLost', () => {
       console.debug('Marker lost');
-      overlay.style.display = 'none';
+      visible = false;
+      $('marker-dot').className = 'dot';
+      $('marker-label').textContent = 'Marker verloren';
+      $('last-seen').textContent = 'Zuletzt: ' + new Date().toLocaleTimeString('de-DE');
+      hint.classList.remove('hidden');
+      card.classList.remove('visible');
+      stopTelemetry();
     });
 
-    /* global functions for debugging */
+    $('btn-switch').addEventListener('click', () => {
+      const url = new URL(location.href);
+      if (usingFront) url.searchParams.delete('cam');
+      else url.searchParams.set('cam', 'user');
+      location.href = url.toString();
+    });
+
+    btnTorch.addEventListener('click', async () => {
+      const track = getTrack();
+      if (!track) return;
+      try {
+        torchOn = !torchOn;
+        await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+        btnTorch.classList.toggle('active', torchOn);
+        showToast(torchOn ? 'Taschenlampe an' : 'Taschenlampe aus');
+      } catch (error) {
+        torchOn = false;
+        btnTorch.classList.remove('active');
+        showToast('Taschenlampe nicht verfügbar');
+      }
+    });
+
+    $('btn-shot').addEventListener('click', () => {
+      const video = getVideo();
+      const glCanvas = document.querySelector('canvas.a-canvas');
+      if (!video || !glCanvas) return;
+      try {
+        scene.renderer.render(scene.object3D, scene.camera);
+        const out = document.createElement('canvas');
+        out.width = glCanvas.width;
+        out.height = glCanvas.height;
+        const ctx = out.getContext('2d');
+        const scale = Math.min(out.width / video.videoWidth, out.height / video.videoHeight);
+        const w = video.videoWidth * scale;
+        const h = video.videoHeight * scale;
+        ctx.drawImage(video, (out.width - w) / 2, (out.height - h) / 2, w, h);
+        ctx.drawImage(glCanvas, 0, 0);
+        const link = document.createElement('a');
+        link.download = 'ar-screenshot-' + Date.now() + '.png';
+        link.href = out.toDataURL('image/png');
+        link.click();
+        showToast('Screenshot gespeichert');
+      } catch (error) {
+        showToast('Screenshot fehlgeschlagen');
+      }
+    });
+
+    $('btn-full').addEventListener('click', async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch (error) {
+        showToast('Vollbild nicht unterstützt');
+      }
+    });
+
     window.fireEventMarkerFound = () => {
-      const event = new CustomEvent('markerFound');
-      hiroMarker.dispatchEvent(event);
-    }
+      hiroMarker.dispatchEvent(new CustomEvent('markerFound'));
+    };
 
     window.fireEventMarkerLost = () => {
-      const event = new CustomEvent('markerLost');
-      hiroMarker.dispatchEvent(event);
-    }
+      hiroMarker.dispatchEvent(new CustomEvent('markerLost'));
+    };
   </script>
 </body>
 </html>
