@@ -1,6 +1,6 @@
 # Industrie 4.0 AR Mockup
 
-Contains a simple template for starting with an AR featured Web-APP using AFrame and AR.js.
+https://ObamaGaming3.github.io/ar-mockup/
 
 ## Marker used
 
